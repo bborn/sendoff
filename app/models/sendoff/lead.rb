@@ -25,34 +25,42 @@ module Sendoff
       hidden_lead.present?
     end
 
+    # name_source values that indicate the lead's name was NOT verified — it was
+    # guessed from the email local-part or is altogether unknown. These are the
+    # leads worth researching to recover a real name.
+    WEAK_NAME_SOURCES = %w[email_prefix unknown].freeze
+
+    # Title of the auto-generated note the enrichment job writes. Used to detect
+    # whether this lead has already been researched.
+    RESEARCH_NOTE_TITLE = "Research Summary (auto)".freeze
+
     # True when this lead is a good candidate for async enrichment.
     #
-    # Skip if:
-    #   - Latest pipeline stage is contacted / replied / dud (past prospecting)
-    #   - A substantial note (> 300 chars) already exists on the lead or company
+    # Enrichable when ALL of:
+    #   - the name is weak — name_source is email_prefix/unknown, OR first_name
+    #     is blank (so research can recover a real name), AND
+    #   - no research note exists on the lead yet (don't re-research), AND
+    #   - the lead is not hidden.
     #
-    # Enrich if ALL:
-    #   - Stage is new / drafting / review
-    #   - warm_score >= 2 OR last_report_view within 90 days OR a warmth signal is set
-    #   - No substantial pre-existing note
-    #
-    # TODO(seam): in the original app this personal/disposable-domain skiplist
-    # lived in the lead sync service. The generic Leads::Sync service should own
-    # any host-specific domain skip; this method intentionally does not hardcode one.
+    # Deliberately generic: no host-specific warmth/stage/domain concepts. The
+    # research adapter itself decides what (if anything) to return; with the
+    # default NullResearch adapter enrichment is a harmless no-op regardless.
     def enrichable?
-      pe = pipeline_entries.order(updated_at: :desc).first
-      return false unless pe
-      return false if pe.stage.in?(%w[contacted replied dud])
-
-      warm = pe.warm_score.to_i >= 2 ||
-             (pe.last_report_view.present? && pe.last_report_view >= 90.days.ago.to_date) ||
-             pe.warm_signal?
-      return false unless warm
-
-      return false if notes.order(created_at: :desc).first&.body_md&.length.to_i > 300
-      return false if company.notes.order(created_at: :desc).first&.body_md&.length.to_i > 300
+      return false if hidden?
+      return false unless weak_name?
+      return false if research_note?
 
       true
+    end
+
+    private
+
+    def weak_name?
+      WEAK_NAME_SOURCES.include?(name_source.to_s) || first_name.blank?
+    end
+
+    def research_note?
+      notes.where(title: RESEARCH_NOTE_TITLE).exists?
     end
   end
 end

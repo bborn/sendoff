@@ -28,4 +28,9 @@ Gem::Specification.new do |spec|
   spec.add_dependency "google-apis-gmail_v1"
   spec.add_dependency "googleauth"
   spec.add_dependency "mcp"
+
+  # Admin UI (Hotwire). The engine ships a mountable admin interface.
+  spec.add_dependency "turbo-rails"
+  spec.add_dependency "stimulus-rails"
+  spec.add_dependency "importmap-rails"
 end

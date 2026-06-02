@@ -17,7 +17,9 @@ module Sendoff
     #     never touched (that's owned by the SDR workflow) — only the activity
     #     signals are refreshed.
     #
-    # Enrichment is intentionally out of scope here (no EnrichJob).
+    # After upserting, enrichable leads (weak/guessed name) are handed to
+    # Sendoff::EnrichJob asynchronously. That's a no-op unless a host configures
+    # Sendoff.config.research_adapter.
     class Sync
       # Free / personal email providers we never want to prospect into. A lead
       # whose domain is on this list is skipped entirely. Hosts can extend this
@@ -67,6 +69,11 @@ module Sendoff
         company = upsert_company(data)
         lead    = upsert_lead(data, company)
         upsert_pipeline_entry(data, company, lead, stats)
+
+        # Kick off async enrichment for leads with a weak/guessed name. Harmless
+        # by default: the engine's default research adapter is a no-op, so this
+        # only does real work when a host configures a research adapter.
+        Sendoff::EnrichJob.perform_later(lead.id) if lead.enrichable?
       end
 
       def upsert_company(data)

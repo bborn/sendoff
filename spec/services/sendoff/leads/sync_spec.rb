@@ -170,6 +170,33 @@ RSpec.describe Sendoff::Leads::Sync do
     end
   end
 
+  describe "enrichment enqueue" do
+    around do |example|
+      old = ActiveJob::Base.queue_adapter
+      ActiveJob::Base.queue_adapter = :test
+      example.run
+      ActiveJob::Base.queue_adapter = old
+    end
+
+    it "enqueues EnrichJob for a weak-name (email-prefix) lead" do
+      use_source([ ld(email: "kearns@brightwavemedia.com",
+                      company_name: "Brightwave", company_domain: "brightwavemedia.com") ])
+
+      expect { described_class.call }.to have_enqueued_job(Sendoff::EnrichJob)
+
+      lead = Sendoff::Lead.find_by(email: "kearns@brightwavemedia.com")
+      expect(lead.name_source).to eq("email_prefix")
+      expect(lead.enrichable?).to be(true)
+    end
+
+    it "does NOT enqueue EnrichJob for a verified-name lead" do
+      use_source([ ld(email: "dana@brightwavemedia.com", full_name: "Dana Okafor",
+                      company_name: "Brightwave", company_domain: "brightwavemedia.com") ])
+
+      expect { described_class.call }.not_to have_enqueued_job(Sendoff::EnrichJob)
+    end
+  end
+
   describe ".call class method" do
     it "delegates to an instance" do
       use_source([])

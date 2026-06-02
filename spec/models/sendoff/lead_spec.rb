@@ -54,26 +54,35 @@ module Sendoff
     end
 
     describe "#enrichable?" do
-      it "is false with no pipeline entry" do
-        expect(create(:lead).enrichable?).to be(false)
+      it "is true when the name is weak (name_source=email_prefix)" do
+        lead = create(:lead, name_source: "email_prefix", first_name: "Kearns")
+        expect(lead.enrichable?).to be(true)
       end
 
-      it "is false past prospecting (contacted/replied/dud)" do
-        lead = create(:lead)
-        create(:pipeline_entry, :contacted, lead: lead, company: lead.company)
+      it "is true when first_name is blank regardless of name_source" do
+        lead = create(:lead, name_source: "enriched", first_name: nil, full_name: nil)
+        expect(lead.enrichable?).to be(true)
+      end
+
+      it "is false for a verified name (name_source=enriched with a first name)" do
+        lead = create(:lead, name_source: "enriched", first_name: "Dana", full_name: "Dana Okafor")
+        expect(lead.enrichable?).to be(false)
+      end
+
+      it "is false for a manually-set name" do
+        lead = create(:lead, name_source: "manual", first_name: "Sam", full_name: "Sam Lee")
+        expect(lead.enrichable?).to be(false)
+      end
+
+      it "is false when a research note already exists" do
+        lead = create(:lead, name_source: "email_prefix", first_name: "Kearns")
+        create(:note, :on_lead, notable: lead, title: "Research Summary (auto)", body_md: "done")
         expect(lead.reload.enrichable?).to be(false)
       end
 
-      it "is true for a warm new lead with no substantial notes" do
-        lead = create(:lead)
-        create(:pipeline_entry, :warm, lead: lead, company: lead.company)
-        expect(lead.reload.enrichable?).to be(true)
-      end
-
-      it "is false when a substantial note already exists" do
-        lead = create(:lead)
-        create(:pipeline_entry, :warm, lead: lead, company: lead.company)
-        create(:note, :on_lead, notable: lead, body_md: "x" * 400)
+      it "is false when the lead is hidden" do
+        lead = create(:lead, name_source: "email_prefix", first_name: "Kearns")
+        create(:hidden_lead, lead: lead)
         expect(lead.reload.enrichable?).to be(false)
       end
     end

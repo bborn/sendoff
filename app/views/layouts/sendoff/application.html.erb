@@ -1,17 +1,38 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Sdr engine</title>
+  <title><%= [content_for(:title).presence, app_name].compact.join(" — ") %></title>
   <%= csrf_meta_tags %>
   <%= csp_meta_tag %>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
   <%= yield :head %>
 
-  <%= stylesheet_link_tag    "sendoff/application", media: "all" %>
+  <%= stylesheet_link_tag "sendoff/application", media: "all" %>
+  <%= javascript_importmap_tags "sendoff/application" %>
 </head>
-<body>
+<body data-controller="clipboard">
 
-<%= yield %>
+  <nav class="sdr-nav">
+    <%= link_to root_path, class: "brand" do %>Send<span>off</span><% end %>
+    <%= link_to "Dashboard", root_path, class: ("active" if current_page?(root_path)) %>
+    <%= link_to "Pipeline", pipeline_path %>
+    <%= link_to "Leads", leads_path %>
+    <%= link_to "Companies", companies_path %>
+    <%= link_to "Drafts", drafts_path %>
+    <%= link_to "Voice rules", voice_rules_path %>
+    <span class="spacer"></span>
+    <span class="who"><%= app_name %></span>
+  </nav>
 
+  <div class="sdr-container">
+    <% if flash.notice.present? %><div class="flash notice"><%= flash.notice %></div><% end %>
+    <% if flash.alert.present? %><div class="flash alert"><%= flash.alert %></div><% end %>
+    <%= yield %>
+  </div>
+
+  <div id="toast-container" data-controller="toasts"></div>
 </body>
 </html>

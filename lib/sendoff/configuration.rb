@@ -8,6 +8,7 @@ module Sendoff
     attr_accessor :lead_source
     attr_accessor :account_lookup
     attr_accessor :brand_mention_source
+    attr_accessor :research_adapter
     attr_accessor :gmail_client_factory
 
     # Behavior toggles / tunables
@@ -27,6 +28,7 @@ module Sendoff
       @lead_source          = Adapters::NullLeadSource.new
       @account_lookup       = Adapters::NullAccountLookup.new
       @brand_mention_source = Adapters::NullBrandMentionSource.new
+      @research_adapter     = Adapters::NullResearch.new
 
       # Lazily resolve the real Gmail client so this file has no app/ load-order
       # dependency. Hosts can replace with ->(account) { MyFakeGmail.new }.
