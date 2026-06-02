@@ -1,2 +1,2 @@
 import "@hotwired/turbo-rails"
-import "sendoff/controllers/index"
+import "sendoff/controllers"

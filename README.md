@@ -257,6 +257,12 @@ between stages, **Drafts** (review, edit, refine, schedule, send), **Leads** and
 **Companies** browse + detail, and **Voice rules** management. Styling is a small
 self-contained CSS design system — there's no Tailwind build step.
 
+| Pipeline | Draft review |
+|---|---|
+| ![Pipeline kanban](docs/screenshots/sendoff-pipeline.png) | ![Draft review](docs/screenshots/sendoff-draft-modal.png) |
+| **Dashboard** | **Leads** |
+| ![Dashboard](docs/screenshots/sendoff-dashboard.png) | ![Leads](docs/screenshots/sendoff-leads.png) |
+
 To see it populated with fictional data, run the demo seed, then boot the dummy app:
 
 ```bash
@@ -286,11 +292,42 @@ configured `llm_client` — no Firecrawl, MCP, or extra services. The default is
 config.research_adapter = Sendoff::Adapters::LLMResearch.new
 ```
 
+## Drive it from an agent (MCP + the `/sdr` skill)
+
+Sendoff ships an **MCP server** at `<mount>/mcp` exposing the whole workflow as
+tools (`pipeline_summary`, `get_lead_context`, `queue_draft`, `refine_draft`,
+`send_draft`, `move_to_stage`, `add_voice_rule`, …). This is the primary way to
+operate it: an agent reads the pipeline, drafts in your voice, reviews for
+hallucinations, and sends — while you watch.
+
+Auth is a single header, `X-API-KEY`, checked against `ENV["SENDOFF_MCP_API_KEY"]`
+(fail-closed — no key set means every request is `401`). Connect it to Claude:
+
+```bash
+claude mcp add sendoff --transport http \
+  --url https://YOUR-HOST/sendoff/mcp \
+  --header "X-API-KEY: $SENDOFF_MCP_API_KEY"
+```
+
+The repo includes a **`/sdr` Claude skill** (`.claude/skills/sdr/SKILL.md`) that
+drives these tools end-to-end — "run my outreach" and it triages the pipeline,
+drafts, reviews, and sends, then reports back. Copy it into your own
+`.claude/skills/` to use it anywhere.
+
+## Receiving replies & BCC copies
+
+`POST <mount>/inbound_emails` is a provider-agnostic webhook that records inbound
+replies and BCC'd copies of sent mail as `EmailEvent`s (matched to the lead and
+thread, deduped by `Message-ID`). It accepts raw RFC822 or pre-parsed fields and
+needs no ActionMailbox/ActiveStorage. Auth is `ENV["SENDOFF_INBOUND_SECRET"]`
+(fail-closed). See [docs/inbound_email.md](docs/inbound_email.md) for the
+**Cloudflare Email Worker**, SendGrid Inbound Parse, and Mailgun setups.
+
 ## Roadmap
 
-Seams in the architecture, not yet built:
-
-- **Inbound BCC ingress** — ActionMailbox parsing of BCC'd outbound mail.
+The core is built (drafter, critics, send-safety, pipeline, Gmail, MCP, admin UI,
+enrichment, inbound ingress). Natural next steps: a richer reply-handling inbox,
+and pluggable LLM clients beyond the Claude CLI.
 
 ## License
 

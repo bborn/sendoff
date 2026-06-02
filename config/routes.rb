@@ -4,6 +4,9 @@ Sendoff::Engine.routes.draw do
   # MCP server
   post "/mcp", to: "mcp#handle"
 
+  # Inbound email ingress (BCC copies + replies) — provider-agnostic webhook
+  post "/inbound_emails", to: "inbound_emails#create"
+
   # Pipeline (kanban)
   get "pipeline", to: "pipeline#index", as: :pipeline
   patch "pipeline/:id/move", to: "pipeline#move", as: :move_pipeline_entry
