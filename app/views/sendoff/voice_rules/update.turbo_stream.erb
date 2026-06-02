@@ -1,0 +1,11 @@
+<% if @rule.errors.empty? %>
+  <%= turbo_stream.replace dom_id(@rule) do %>
+    <%= render partial: "rule_row", object: @rule, as: :rule %>
+  <% end %>
+<% else %>
+  <%= turbo_stream.update "add-rule-errors" do %>
+    <div class="flash alert">
+      <%= @rule.errors.full_messages.to_sentence %>
+    </div>
+  <% end %>
+<% end %>

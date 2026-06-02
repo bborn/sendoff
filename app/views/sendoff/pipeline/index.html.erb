@@ -1,0 +1,55 @@
+<% content_for :title, "Pipeline" %>
+
+<div data-controller="kanban"
+     data-kanban-move-url-value="<%= move_pipeline_entry_path("__ID__") %>">
+
+  <div class="page-head">
+    <h1>Pipeline</h1>
+    <span class="muted"><%= @stage_counts.values.sum %> entries</span>
+    <span class="spacer"></span>
+    <button type="button"
+            class="chip <%= "active" if @show_duds %>"
+            data-kanban-target="dudsToggle"
+            data-action="kanban#toggleDuds">
+      Show duds
+    </button>
+  </div>
+
+  <%= form_with url: pipeline_path, method: :get, data: { turbo: false }, class: "filters" do |f| %>
+    <%= f.select :segment,
+          [["All segments", ""], ["Agency", "agency"], ["Brand", "brand"],
+           ["Nonprofit", "nonprofit"], ["Unknown", "unknown"]],
+          { selected: params[:segment] },
+          onchange: "this.form.requestSubmit()" %>
+
+    <%= f.text_field :q, value: params[:q],
+          placeholder: "Search name / email / company…",
+          data: { kanban_target: "search", action: "input->kanban#filter" } %>
+
+    <% if params[:segment].present? || params[:q].present? %>
+      <%= link_to "Clear", pipeline_path, class: "chip" %>
+    <% end %>
+  <% end %>
+
+  <div class="kanban-board">
+    <% @stage_order.each do |stage| %>
+      <% next if stage == "dud" && !@show_duds %>
+      <% entries = @entries_by_stage[stage] %>
+
+      <div class="kanban-col" data-kanban-target="column">
+        <h3>
+          <span><%= @stage_labels[stage] %></span>
+          <span><%= @stage_counts[stage] %></span>
+        </h3>
+
+        <div class="kanban-cards"
+             data-kanban-target="list"
+             data-stage="<%= stage %>">
+          <% entries.each do |entry| %>
+            <%= render "card", entry: entry %>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>

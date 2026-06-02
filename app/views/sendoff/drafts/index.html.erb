@@ -1,0 +1,21 @@
+<% content_for :title, "Drafts" %>
+
+<div class="page-head">
+  <h1>Drafts</h1>
+  <span class="spacer"></span>
+  <span class="muted"><%= pluralize(@drafts.size, "draft") %> awaiting review</span>
+</div>
+
+<% if @drafts.empty? %>
+  <div class="sdr-card sdr-empty">
+    All caught up — no drafts waiting for review.
+  </div>
+<% else %>
+  <div class="stack" id="draft-cards">
+    <%= render partial: "card", collection: @drafts, as: :draft %>
+  </div>
+<% end %>
+
+<%# Turbo Frame the Review links target; the modal partial renders a <dialog>
+    that auto-opens via its Stimulus controller. %>
+<%= turbo_frame_tag "draft-modal-frame" %>

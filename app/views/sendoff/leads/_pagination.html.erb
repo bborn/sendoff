@@ -1,0 +1,16 @@
+<%# Simple prev/next pagination. locals: page, has_prev, has_next, base_path %>
+<% if has_prev || has_next %>
+  <div class="filters" style="justify-content: center; margin-top: 16px;">
+    <% if has_prev %>
+      <%= link_to "← Prev", url_for(request.query_parameters.merge(page: page - 1)), class: "btn btn-sm" %>
+    <% else %>
+      <span class="btn btn-sm" aria-disabled="true" style="opacity:.5;">← Prev</span>
+    <% end %>
+    <span class="muted">Page <%= page %></span>
+    <% if has_next %>
+      <%= link_to "Next →", url_for(request.query_parameters.merge(page: page + 1)), class: "btn btn-sm" %>
+    <% else %>
+      <span class="btn btn-sm" aria-disabled="true" style="opacity:.5;">Next →</span>
+    <% end %>
+  </div>
+<% end %>

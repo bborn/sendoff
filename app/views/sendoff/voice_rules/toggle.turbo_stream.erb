@@ -1,0 +1,3 @@
+<%= turbo_stream.replace dom_id(@rule) do %>
+  <%= render partial: "rule_row", object: @rule, as: :rule %>
+<% end %>

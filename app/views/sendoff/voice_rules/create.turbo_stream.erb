@@ -1,0 +1,12 @@
+<% if @rule.persisted? %>
+  <%= turbo_stream.prepend "voice_rules" do %>
+    <%= render partial: "rule_row", object: @rule, as: :rule %>
+  <% end %>
+  <%= turbo_stream.update "add-rule-errors", "" %>
+<% else %>
+  <%= turbo_stream.update "add-rule-errors" do %>
+    <div class="flash alert">
+      <%= @rule.errors.full_messages.to_sentence %>
+    </div>
+  <% end %>
+<% end %>

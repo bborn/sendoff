@@ -1,0 +1,59 @@
+<% content_for :title, "Companies" %>
+
+<div class="page-head">
+  <h1>Companies</h1>
+  <span class="muted"><%= @total %> total</span>
+</div>
+
+<%= form_with url: companies_path, method: :get, data: { turbo: false }, class: "filters" do |f| %>
+  <%= f.select :segment,
+        [["All segments", ""], ["Agency", "agency"], ["Brand", "brand"],
+         ["Nonprofit", "nonprofit"], ["Unknown", "unknown"]],
+        { selected: params[:segment] },
+        onchange: "this.form.requestSubmit()" %>
+
+  <%= f.text_field :q, value: params[:q],
+        placeholder: "Search name or domain…",
+        style: "width: 240px;" %>
+  <%= f.submit "Search", class: "btn btn-sm" %>
+
+  <% if [params[:segment], params[:q]].any?(&:present?) %>
+    <%= link_to "Clear", companies_path, class: "chip" %>
+  <% end %>
+<% end %>
+
+<div class="sdr-card" style="overflow-x: auto; padding: 0;">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Domain</th>
+        <th>Segment</th>
+        <th style="text-align:right;">Leads</th>
+        <th style="text-align:right;">Pipeline</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @companies.each do |company| %>
+        <tr>
+          <td><%= link_to company.name, company_path(company) %></td>
+          <td class="muted"><%= company.domain %></td>
+          <td><%= render "sendoff/leads/segment_badge", company: company %></td>
+          <td style="text-align:right;">
+            <% leads_count = company.leads_count.to_i %>
+            <%= leads_count.positive? ? leads_count : content_tag(:span, "—", class: "muted") %>
+          </td>
+          <td style="text-align:right;">
+            <% pe_count = company.pipeline_count.to_i %>
+            <%= pe_count.positive? ? content_tag(:span, pe_count, class: "badge badge-purple") : content_tag(:span, "—", class: "muted") %>
+          </td>
+        </tr>
+      <% end %>
+      <% if @companies.empty? %>
+        <tr><td colspan="5" class="sdr-empty">No companies match these filters.</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<%= render "sendoff/leads/pagination", page: @page, has_prev: @has_prev, has_next: @has_next, base_path: companies_path %>

@@ -1,0 +1,53 @@
+<% content_for :title, "Leads" %>
+
+<div class="page-head">
+  <h1>Leads</h1>
+  <span class="muted"><%= @total %> total</span>
+</div>
+
+<%= form_with url: leads_path, method: :get, data: { turbo: false }, class: "filters" do |f| %>
+  <%= f.select :segment,
+        [["All segments", ""], ["Agency", "agency"], ["Brand", "brand"],
+         ["Nonprofit", "nonprofit"], ["Unknown", "unknown"]],
+        { selected: params[:segment] },
+        onchange: "this.form.requestSubmit()" %>
+
+  <%= f.select :has_pipeline,
+        [["Pipeline: any", ""], ["In pipeline", "yes"], ["Not in pipeline", "no"]],
+        { selected: params[:has_pipeline] },
+        onchange: "this.form.requestSubmit()" %>
+
+  <%= f.text_field :q, value: params[:q],
+        placeholder: "Search name or email…",
+        style: "width: 240px;" %>
+  <%= f.submit "Search", class: "btn btn-sm" %>
+
+  <% if [params[:segment], params[:has_pipeline], params[:q]].any?(&:present?) %>
+    <%= link_to "Clear", leads_path, class: "chip" %>
+  <% end %>
+<% end %>
+
+<div class="sdr-card" style="overflow-x: auto; padding: 0;">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Email</th>
+        <th>Name</th>
+        <th>Company</th>
+        <th>Domain</th>
+        <th>Stage</th>
+        <th>Created</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% @leads.each do |lead| %>
+        <%= render "row", lead: lead %>
+      <% end %>
+      <% if @leads.empty? %>
+        <tr><td colspan="6" class="sdr-empty">No leads match these filters.</td></tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<%= render "pagination", page: @page, has_prev: @has_prev, has_next: @has_next, base_path: leads_path %>

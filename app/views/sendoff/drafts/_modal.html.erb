@@ -1,0 +1,159 @@
+<%#
+  Draft review modal. Rendered inside the "draft-modal-frame" Turbo Frame; the
+  <dialog> auto-opens via the "modal" Stimulus controller and closes on backdrop
+  click, the Close/Cancel buttons, or when the frame reloads empty.
+
+  All sender/CC options are derived dynamically from EmailAccount — nothing about
+  any specific person or product is hardcoded. %>
+<%= turbo_frame_tag "draft-modal-frame" do %>
+  <% sender        = draft.email_account %>
+  <% accounts      = Sendoff::EmailAccount.for_outreach.order(:display_name).to_a %>
+  <% accounts     |= [ sender ] if sender %>
+  <% other_active  = Sendoff::EmailAccount.active.where.not(id: sender&.id).order(:display_name).to_a %>
+  <% existing_cc   = draft.cc_addr.to_s.split(",").map(&:strip).reject(&:blank?) %>
+  <% default_bcc   = Array(Sendoff.config.persona.default_bcc).first %>
+
+  <dialog id="draft-review-dialog" class="modal" data-controller="modal">
+    <div class="modal-head" style="display:flex; align-items:center; gap:8px;">
+      <span>Review draft</span>
+      <% if sender %>
+        <span class="badge badge-purple"><%= sender.display_name %></span>
+      <% end %>
+      <span class="spacer" style="flex:1;"></span>
+      <button type="button" class="btn btn-sm" data-action="click->modal#close" aria-label="Close">&times;</button>
+    </div>
+
+    <div class="modal-body">
+      <% if local_assigns[:rate_limit_error].present? %>
+        <div class="flash alert"><%= rate_limit_error %></div>
+      <% end %>
+      <% if local_assigns[:schedule_error].present? %>
+        <div class="flash alert"><%= schedule_error %></div>
+      <% end %>
+      <% if local_assigns[:refine_error].present? %>
+        <div class="flash alert"><%= refine_error %></div>
+      <% end %>
+
+      <% if draft.hallucination_flagged? %>
+        <div class="flash alert">
+          <strong>Unverified claims.</strong> These statements may not be supported by the
+          research context — verify before sending.
+          <ul style="margin:6px 0 0; padding-left:18px;">
+            <% draft.flagged_claims.each do |claim| %>
+              <li><em>"<%= claim.is_a?(Hash) ? (claim["claim"] || claim.values.first) : claim %>"</em></li>
+            <% end %>
+          </ul>
+        </div>
+      <% end %>
+
+      <%# ---- Send form ---- %>
+      <%= form_with url: send_now_draft_path(draft), method: :post, data: { turbo: true } do |f| %>
+        <div class="field">
+          <label>From</label>
+          <%= f.select :from,
+                accounts.map { |a| [ a.to_s, a.email ] },
+                { selected: sender&.email },
+                { disabled: accounts.empty? } %>
+        </div>
+
+        <div class="field">
+          <label>To</label>
+          <%= f.text_field :to_addr, value: draft.to_addr %>
+        </div>
+
+        <div class="field">
+          <label>CC</label>
+          <% if other_active.any? %>
+            <div style="margin-bottom:6px;">
+              <% other_active.each do |acct| %>
+                <label style="display:inline-flex; align-items:center; gap:4px; margin-right:14px; font-weight:500; color:var(--c-text);">
+                  <%= check_box_tag "cc_accounts[]", acct.email, existing_cc.include?(acct.email) %>
+                  <%= acct.display_name %> &lt;<%= acct.email %>&gt;
+                </label>
+              <% end %>
+            </div>
+          <% end %>
+          <%= text_field_tag :cc_addr_extra,
+                (existing_cc - other_active.map(&:email)).join(", "),
+                placeholder: "Additional CC addresses, comma-separated" %>
+        </div>
+
+        <div class="field">
+          <label>BCC</label>
+          <%= f.text_field :bcc_addr, value: (draft.bcc_addr.presence || default_bcc) %>
+        </div>
+
+        <div class="field">
+          <label>Subject</label>
+          <%= f.text_field :subject, value: draft.subject %>
+        </div>
+
+        <div class="field">
+          <label>Body</label>
+          <%= f.text_area :body_html, value: draft.body_html, rows: 12 %>
+        </div>
+
+        <div class="modal-foot" style="justify-content:flex-start; border-top:none; padding:0;">
+          <button type="button" class="btn" data-action="click->modal#close">Cancel</button>
+          <%= button_to "Discard", discard_draft_path(draft),
+                class: "btn btn-danger",
+                form: { data: { turbo_confirm: "Discard this draft?" } } %>
+          <span class="spacer" style="flex:1;"></span>
+          <%= f.submit "Send now", class: "btn btn-primary",
+                data: { turbo_confirm: "Send to #{draft.to_addr} now?" } %>
+        </div>
+      <% end %>
+
+      <%# ---- Refine with AI ---- %>
+      <details style="margin-top:18px; border-top:1px solid var(--c-border); padding-top:14px;">
+        <summary style="font-weight:600; cursor:pointer;">Refine with AI</summary>
+        <%= form_with url: refine_draft_path(draft), method: :post, data: { turbo: true } do |f| %>
+          <%= hidden_field_tag :from, sender&.email %>
+          <div class="field" style="margin-top:10px;">
+            <label>What should change?</label>
+            <%= f.text_area :feedback, rows: 3,
+                  placeholder: "e.g. Shorten the opener. Mention the onboarding call." %>
+          </div>
+          <div class="field">
+            <label style="display:inline-flex; align-items:center; gap:6px; font-weight:500; color:var(--c-text);">
+              <%= f.check_box :save_voice_rule %>
+              Save this as a voice rule for future drafts
+            </label>
+          </div>
+          <%= f.submit "Refine", class: "btn" %>
+        <% end %>
+      </details>
+
+      <%# ---- Schedule ---- %>
+      <details style="margin-top:14px; border-top:1px solid var(--c-border); padding-top:14px;">
+        <summary style="font-weight:600; cursor:pointer;">Schedule for later</summary>
+        <%= form_with url: schedule_draft_path(draft), method: :post, data: { turbo: true } do |f| %>
+          <%= hidden_field_tag :from, sender&.email %>
+          <%= f.hidden_field :to_addr, value: draft.to_addr %>
+          <%= f.hidden_field :bcc_addr, value: (draft.bcc_addr.presence || default_bcc) %>
+          <%= f.hidden_field :subject, value: draft.subject %>
+          <%= f.hidden_field :body_html, value: draft.body_html %>
+
+          <div class="field" style="margin-top:10px;">
+            <label style="display:block; font-weight:500; color:var(--c-text); margin-bottom:6px;">
+              <%= f.radio_button :schedule_option, "tomorrow_morning", checked: true %>
+              Tomorrow morning (9:00 AM)
+            </label>
+            <label style="display:block; font-weight:500; color:var(--c-text); margin-bottom:6px;">
+              <%= f.radio_button :schedule_option, "tomorrow_afternoon" %>
+              Tomorrow afternoon (2:00 PM)
+            </label>
+            <label style="display:block; font-weight:500; color:var(--c-text);">
+              <%= f.radio_button :schedule_option, "custom" %>
+              Custom date &amp; time
+            </label>
+          </div>
+          <div class="field">
+            <%= f.datetime_local_field :custom_dt %>
+          </div>
+          <%= f.submit "Schedule", class: "btn" %>
+        <% end %>
+      </details>
+    </div>
+  </dialog>
+<% end %>

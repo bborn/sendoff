@@ -1,0 +1,23 @@
+<%# A single lead row. locals: lead %>
+<% company = lead.company
+   entry   = lead.pipeline_entries.max_by(&:updated_at) %>
+<tr id="lead-row-<%= lead.id %>">
+  <td><%= link_to lead.email, lead_path(lead) %></td>
+  <td>
+    <% if lead.full_name.present? || lead.first_name.present? %>
+      <%= lead.display_name %>
+    <% else %>
+      <span class="muted">—</span>
+    <% end %>
+  </td>
+  <td><%= company&.name %></td>
+  <td class="muted"><%= company&.domain %></td>
+  <td>
+    <% if entry %>
+      <span class="badge badge-gray"><%= entry.stage_label %></span>
+    <% else %>
+      <span class="muted">—</span>
+    <% end %>
+  </td>
+  <td class="muted"><%= lead.created_at.strftime("%b %-d, %Y") %></td>
+</tr>

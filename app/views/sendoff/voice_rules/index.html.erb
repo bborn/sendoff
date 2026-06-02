@@ -1,0 +1,75 @@
+<% content_for :title, "Voice rules" %>
+
+<div class="page-head">
+  <h1>Voice rules</h1>
+  <span class="spacer"></span>
+  <button type="button" class="btn btn-primary"
+          onclick="document.getElementById('add-rule-dialog').showModal()">
+    Add rule
+  </button>
+</div>
+
+<p class="muted" style="margin: -8px 0 16px; max-width: 640px;">
+  When you refine a draft, your feedback is distilled into a reusable rule.
+  Rules are injected into every new draft of the matching variant. Disable a
+  rule to stop applying it without deleting it.
+</p>
+
+<div class="filters">
+  <%= link_to "All", voice_rules_path,
+        class: "chip #{'active' unless @scope_filter}" %>
+  <% @scope_labels.each do |value, label| %>
+    <%= link_to label, voice_rules_path(scope: value),
+          class: "chip #{'active' if @scope_filter == value}" %>
+  <% end %>
+</div>
+
+<div class="sdr-card">
+  <% if @rules.empty? %>
+    <div class="sdr-empty">
+      No voice rules yet. Refine a draft, or add one manually to get started.
+    </div>
+  <% else %>
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Scope</th>
+          <th>Rule</th>
+          <th>Source feedback</th>
+          <th>Status</th>
+          <th style="text-align: right;">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="voice_rules">
+        <%= render partial: "rule_row", collection: @rules, as: :rule %>
+      </tbody>
+    </table>
+  <% end %>
+</div>
+
+<dialog id="add-rule-dialog" class="modal">
+  <%= form_with model: Sendoff::VoiceRule.new, url: voice_rules_path do |f| %>
+    <div class="modal-head">Add voice rule</div>
+    <div class="modal-body">
+      <div id="add-rule-errors"></div>
+      <div class="field">
+        <%= f.label :scope %>
+        <%= f.select :scope,
+              @scope_labels.map { |value, label| [label, value] },
+              { selected: @scope_filter } %>
+      </div>
+      <div class="field">
+        <%= f.label :rule, "Rule" %>
+        <%= f.text_area :rule,
+              placeholder: 'e.g. Never open with "I hope this finds you well."' %>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn"
+              onclick="document.getElementById('add-rule-dialog').close()">
+        Cancel
+      </button>
+      <%= f.submit "Add rule", class: "btn btn-primary" %>
+    </div>
+  <% end %>
+</dialog>

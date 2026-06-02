@@ -1,0 +1,47 @@
+<%#
+  A single draft in the review queue. The sender-mailbox badge is derived
+  dynamically from the draft's email account (never hardcoded). %>
+<% account = draft.email_account %>
+<div class="sdr-card" id="<%= dom_id(draft, :card) %>">
+  <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+    <strong><%= draft.to_addr %></strong>
+
+    <% if account %>
+      <span class="badge badge-purple" title="Sends from <%= account.email %>">
+        <%= account.display_name %>
+      </span>
+    <% else %>
+      <span class="badge badge-gray" title="No sending mailbox set">no mailbox</span>
+    <% end %>
+
+    <% if draft.intent.present? %>
+      <span class="badge badge-blue"><%= draft.intent.humanize.downcase %></span>
+    <% end %>
+
+    <% if draft.scheduled? %>
+      <span class="badge badge-amber" title="<%= draft.scheduled_at&.iso8601 %>">
+        scheduled<%= " · #{l(draft.scheduled_at, format: :short)}" if draft.scheduled_at %>
+      </span>
+    <% end %>
+
+    <% if draft.hallucination_flagged? %>
+      <span class="badge badge-red" title="Unverified claims flagged">needs check</span>
+    <% end %>
+
+    <span class="spacer" style="flex:1;"></span>
+    <span class="muted" style="font-size:12px;"><%= time_ago_in_words(draft.created_at) %> ago</span>
+  </div>
+
+  <div style="font-weight:600; margin-bottom:4px;"><%= draft.subject %></div>
+  <div class="muted" style="font-size:13px;">
+    <%= truncate(strip_tags(draft.body_html.to_s), length: 180) %>
+  </div>
+
+  <div style="display:flex; gap:8px; margin-top:12px;">
+    <%= link_to "Review", edit_draft_path(draft),
+          data: { turbo_frame: "draft-modal-frame" }, class: "btn btn-sm btn-primary" %>
+    <%= button_to "Discard", discard_draft_path(draft),
+          class: "btn btn-sm btn-danger",
+          form: { data: { turbo_confirm: "Discard this draft? The Gmail preview draft will be deleted." } } %>
+  </div>
+</div>

@@ -1,0 +1,22 @@
+<% lead    = entry.lead
+   company = entry.company
+   name    = lead.display_name.to_s
+   seg     = company&.segment
+   seg_class = { "agency" => "badge-blue", "brand" => "badge-purple",
+                 "nonprofit" => "badge-green", "unknown" => "badge-gray" }[seg] || "badge-gray" %>
+
+<div class="kanban-card"
+     id="pipeline-entry-<%= entry.id %>"
+     data-kanban-target="card"
+     data-pipeline-entry-id="<%= entry.id %>"
+     data-search="<%= [name, lead.email, company&.name].compact.join(' ').downcase %>">
+  <div class="who"><%= name %></div>
+  <div class="sub"><%= lead.email %></div>
+  <div class="sub">
+    <%= company&.name %>
+    <% if seg %>
+      <span class="badge <%= seg_class %>"><%= company.segment_label %></span>
+    <% end %>
+  </div>
+  <div class="sub"><%= time_ago_short(entry.updated_at) %></div>
+</div>

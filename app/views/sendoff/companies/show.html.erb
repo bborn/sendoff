@@ -1,0 +1,60 @@
+<% content_for :title, @company.name %>
+
+<div class="page-head">
+  <%= link_to "← Companies", companies_path, class: "muted" %>
+</div>
+
+<div class="stack">
+  <div class="sdr-card">
+    <h1 style="margin:0 0 6px; font-size:20px;"><%= @company.name %></h1>
+    <div class="muted" style="margin-bottom:8px;">
+      <%= link_to @company.domain, "https://#{@company.domain}", target: "_blank", rel: "noopener" %>
+    </div>
+    <%= render "sendoff/leads/segment_badge", company: @company %>
+    <div class="muted" style="margin-top:10px; font-size:12px;">
+      <%= pluralize(@leads.size, "lead") %> · <%= pluralize(@pipeline_count, "pipeline entry") %>
+    </div>
+    <% if @company.notes_md.present? %>
+      <div style="white-space:pre-wrap; margin-top:12px;"><%= @company.notes_md %></div>
+    <% end %>
+  </div>
+
+  <div class="sdr-card" style="overflow-x: auto; padding: 0;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Name</th>
+          <th>Stage</th>
+          <th>Created</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @leads.each do |lead| %>
+          <% entry = lead.pipeline_entries.max_by(&:updated_at) %>
+          <tr>
+            <td><%= link_to lead.email, lead_path(lead) %></td>
+            <td>
+              <% if lead.full_name.present? || lead.first_name.present? %>
+                <%= lead.display_name %>
+              <% else %>
+                <span class="muted">—</span>
+              <% end %>
+            </td>
+            <td>
+              <% if entry %>
+                <span class="badge badge-gray"><%= entry.stage_label %></span>
+              <% else %>
+                <span class="muted">—</span>
+              <% end %>
+            </td>
+            <td class="muted"><%= lead.created_at.strftime("%b %-d, %Y") %></td>
+          </tr>
+        <% end %>
+        <% if @leads.empty? %>
+          <tr><td colspan="4" class="sdr-empty">No leads for this company.</td></tr>
+        <% end %>
+      </tbody>
+    </table>
+  </div>
+</div>

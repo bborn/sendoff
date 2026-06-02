@@ -1,0 +1,23 @@
+<tr id="<%= dom_id(rule) %>" class="<%= 'muted' unless rule.active? %>">
+  <td>
+    <span class="badge <%= scope_badge_class(rule.scope) %>"><%= scope_label(rule.scope) %></span>
+  </td>
+  <td><%= rule.rule %></td>
+  <td class="muted">
+    <%= rule.raw_feedback.presence || "—" %>
+  </td>
+  <td>
+    <% if rule.active? %>
+      <span class="badge badge-green">Active</span>
+    <% else %>
+      <span class="badge badge-gray">Disabled</span>
+    <% end %>
+  </td>
+  <td style="text-align: right; white-space: nowrap;">
+    <%= button_to (rule.active? ? "Disable" : "Enable"), toggle_voice_rule_path(rule),
+          method: :patch, class: "btn btn-sm" %>
+    <%= button_to "Delete", voice_rule_path(rule),
+          method: :delete, class: "btn btn-sm btn-danger",
+          form: { data: { turbo_confirm: "Delete this rule?" } } %>
+  </td>
+</tr>

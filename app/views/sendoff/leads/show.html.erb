@@ -1,0 +1,127 @@
+<% content_for :title, @lead.display_name %>
+
+<div class="page-head">
+  <%= link_to "← Leads", leads_path, class: "muted" %>
+</div>
+
+<div style="display:grid; grid-template-columns: 2fr 1fr; gap: 20px; align-items: start;">
+  <div class="stack">
+    <%# Header %>
+    <div class="sdr-card">
+      <h1 style="margin:0 0 6px; font-size:20px;"><%= @lead.display_name %></h1>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="muted"><%= @lead.email %></span>
+        <button type="button" class="btn btn-sm"
+                data-controller="clipboard"
+                data-clipboard-text-value="<%= @lead.email %>"
+                data-action="clipboard#copy">Copy</button>
+      </div>
+      <% if @lead.role.present? %>
+        <div class="muted" style="margin-top:6px;"><%= @lead.role %></div>
+      <% end %>
+      <% if @lead.hidden? %>
+        <div style="margin-top:8px;"><span class="badge badge-red">Skipped</span></div>
+      <% end %>
+    </div>
+
+    <%# Notes (research summaries) %>
+    <div class="sdr-card">
+      <h2 style="font-size:16px; margin:0 0 12px;">Notes</h2>
+      <% if @notes.any? %>
+        <div class="stack">
+          <% @notes.each do |note| %>
+            <div style="border-bottom:1px solid var(--c-border); padding-bottom:12px;">
+              <% if note.title.present? %>
+                <div style="font-weight:600;"><%= note.title %></div>
+              <% end %>
+              <div style="white-space:pre-wrap;"><%= note.body_md %></div>
+              <div class="muted" style="font-size:12px; margin-top:4px;">
+                <%= [note.author, note.source].compact.join(" · ") %>
+                <%= "· #{time_ago_short(note.created_at)}" %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="muted">No notes yet.</div>
+      <% end %>
+    </div>
+
+    <%# Email history — wrapped in a rescue in the controller; renders empty on error. %>
+    <div class="sdr-card">
+      <h2 style="font-size:16px; margin:0 0 12px;">Email history</h2>
+      <% messages = (@gmail_history && @gmail_history[:messages]) || [] %>
+      <% if messages.any? %>
+        <div class="stack">
+          <% messages.each do |msg| %>
+            <div style="border-bottom:1px solid var(--c-border); padding-bottom:10px;">
+              <div style="font-weight:600;"><%= msg[:subject].presence || "(no subject)" %></div>
+              <div class="muted" style="font-size:12px;">
+                <%= msg[:from] || msg[:from_addr] %>
+                <% if msg[:sent_at] %>· <%= msg[:sent_at].is_a?(Time) ? msg[:sent_at].strftime("%b %-d, %Y") : msg[:sent_at] %><% end %>
+              </div>
+              <% if msg[:snippet].present? %>
+                <div class="muted" style="margin-top:4px;"><%= truncate(msg[:snippet], length: 160) %></div>
+              <% end %>
+            </div>
+          <% end %>
+        </div>
+      <% else %>
+        <div class="muted">No email history.</div>
+      <% end %>
+    </div>
+  </div>
+
+  <%# Sidebar: company, pipeline, actions %>
+  <div class="stack">
+    <div class="sdr-card">
+      <h2 style="font-size:14px; margin:0 0 10px; text-transform:uppercase; letter-spacing:.04em; color:var(--c-muted);">Company</h2>
+      <% if @company %>
+        <div style="font-weight:600;"><%= link_to @company.name, company_path(@company) %></div>
+        <div class="muted" style="margin:4px 0;">
+          <%= link_to @company.domain, "https://#{@company.domain}", target: "_blank", rel: "noopener" %>
+        </div>
+        <%= render "segment_badge", company: @company %>
+      <% else %>
+        <div class="muted">No company.</div>
+      <% end %>
+    </div>
+
+    <div class="sdr-card">
+      <h2 style="font-size:14px; margin:0 0 10px; text-transform:uppercase; letter-spacing:.04em; color:var(--c-muted);">Pipeline</h2>
+      <% if @entry %>
+        <span class="badge badge-gray"><%= @entry.stage_label %></span>
+        <div class="muted" style="font-size:12px; margin-top:6px;">Updated <%= time_ago_short(@entry.updated_at) %></div>
+      <% else %>
+        <div class="muted">Not in pipeline.</div>
+      <% end %>
+    </div>
+
+    <div class="sdr-card">
+      <h2 style="font-size:14px; margin:0 0 10px; text-transform:uppercase; letter-spacing:.04em; color:var(--c-muted);">Actions</h2>
+      <div class="stack">
+        <% if @pending_draft %>
+          <%= link_to "Open draft", edit_draft_path(@pending_draft), class: "btn btn-primary" %>
+        <% elsif @entry&.stage == "drafting" %>
+          <span class="btn" aria-disabled="true" style="opacity:.6;">Drafting…</span>
+        <% else %>
+          <%= button_to "Queue draft", queue_lead_path(@lead), method: :post,
+                class: "btn btn-primary", data: { turbo_stream: true } %>
+        <% end %>
+
+        <%= button_to "Enrich", enrich_lead_path(@lead), method: :post,
+              class: "btn", data: { turbo_stream: true,
+              turbo_confirm: "Run fresh research for this lead?" } %>
+
+        <% if @lead.hidden? %>
+          <%= button_to "Unskip", unskip_lead_path(@lead), method: :post,
+                class: "btn", data: { turbo_stream: true } %>
+        <% else %>
+          <%= button_to "Skip", skip_lead_path(@lead), method: :post,
+                class: "btn btn-danger",
+                data: { turbo_stream: true, turbo_confirm: "Skip #{@lead.display_name}?" } %>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

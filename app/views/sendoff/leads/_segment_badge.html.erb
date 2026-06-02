@@ -1,0 +1,8 @@
+<%# Renders a segment badge for a company. locals: company %>
+<% if company&.segment.present? %>
+  <% seg_class = { "agency" => "badge-blue", "brand" => "badge-purple",
+                   "nonprofit" => "badge-green", "unknown" => "badge-gray" }[company.segment] || "badge-gray" %>
+  <span class="badge <%= seg_class %>"><%= company.segment_label %></span>
+<% else %>
+  <span class="muted">—</span>
+<% end %>
