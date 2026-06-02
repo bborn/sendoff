@@ -22,7 +22,9 @@ client. The defaults are network-free, so the engine boots with zero configurati
 - **Send-safety guards** — daily/hourly caps and a per-recipient cooldown.
 - **Gmail integration** — OAuth send + thread-history context.
 - **MCP server** — drive the engine from an agent over the Model Context Protocol.
-- **Pluggable everything** — lead source, account lookup, brand-mention source, LLM client, and persona are all swappable.
+- **Admin UI** — a mountable Turbo + Stimulus interface: pipeline kanban (drag-drop), draft review/send/refine, lead & company browse, voice-rule management. Ships a small static CSS design system — no Tailwind build.
+- **Lead enrichment** — an optional research adapter that reuses your LLM client to research a lead and write a summary (no extra services required).
+- **Pluggable everything** — lead source, account lookup, brand-mention source, research, LLM client, and persona are all swappable.
 
 ## How it works
 
@@ -247,14 +249,48 @@ RAILS_ENV=development bundle exec rake app:sendoff:demo
 It syncs example leads, classifies their segments, skips personal-email addresses, and
 prints a pipeline summary.
 
+## Admin UI
+
+The engine mounts a Turbo + Stimulus admin interface at wherever you mount it
+(e.g. `/sendoff`). Screens: a **Dashboard**, a **Pipeline** kanban with drag-drop
+between stages, **Drafts** (review, edit, refine, schedule, send), **Leads** and
+**Companies** browse + detail, and **Voice rules** management. Styling is a small
+self-contained CSS design system — there's no Tailwind build step.
+
+To see it populated with fictional data, run the demo seed, then boot the dummy app:
+
+```bash
+cd spec/dummy && RAILS_ENV=development bin/rails db:schema:load && cd ../..
+RAILS_ENV=development bundle exec rake app:sendoff:demo
+cd spec/dummy && RAILS_ENV=development bin/rails server
+# open http://localhost:3000/sendoff
+```
+
+Mount it in a host app behind your own auth (the base controller reads a
+`Cf-Access-Authenticated-User-Email` header for the audit actor, falling back to
+`"admin"`):
+
+```ruby
+# config/routes.rb
+mount Sendoff::Engine => "/sendoff"
+```
+
+## Enrichment
+
+`Sendoff::EnrichJob` researches a thin lead via `config.research_adapter` and
+writes a summary `Note`. The bundled `Sendoff::Adapters::LLMResearch` reuses your
+configured `llm_client` — no Firecrawl, MCP, or extra services. The default is
+`NullResearch` (a no-op), so enrichment is strictly opt-in:
+
+```ruby
+config.research_adapter = Sendoff::Adapters::LLMResearch.new
+```
+
 ## Roadmap
 
-These are seams in the architecture, not yet built:
+Seams in the architecture, not yet built:
 
-- **Enrichment** — an agentic research adapter (`config.research_adapter`) to enrich
-  thin leads. The seam is planned with a null default; the implementation is not ported.
 - **Inbound BCC ingress** — ActionMailbox parsing of BCC'd outbound mail.
-- **Web admin UI** — Turbo/Hotwire review and pipeline screens. Backend + MCP only for now.
 
 ## License
 

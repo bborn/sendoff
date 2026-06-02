@@ -33,6 +33,38 @@ namespace :sendoff do
     puts "Sync stats: #{stats.map { |k, v| "#{k}=#{v}" }.join(' ')}"
     puts
 
+    # Seed a few voice rules + example drafts so the admin UI screens
+    # (Drafts, Voice rules) are populated when you click around. Best-effort.
+    begin
+      account = Sendoff::EmailAccount.find_or_create_by!(email: "dana@example.com") do |a|
+        a.display_name = "Dana Sender"
+        a.role = "outreach"
+        a.active = true
+      end
+
+      [
+        [ "all", "Keep it short — three sentences, one clear ask." ],
+        [ "cold_prospect", "Lead with something specific about their work, never a generic compliment." ],
+        [ "all", "No jargon, no exclamation points, write like a human." ]
+      ].each do |scope, rule|
+        Sendoff::VoiceRule.find_or_create_by!(rule: rule) { |r| r.scope = scope; r.active = true }
+      end
+
+      Sendoff::PipelineEntry.includes(:lead).order(warm_score: :desc).limit(2).each do |pe|
+        next if Sendoff::Draft.exists?(lead_id: pe.lead_id)
+        Sendoff::Draft.create!(
+          lead: pe.lead, pipeline_entry: pe, email_account: account,
+          to_addr: pe.lead.email, status: "pending", intent: "cold",
+          subject: "Quick question, #{pe.lead.display_name.split.first}",
+          body_html: "<p>Hi #{pe.lead.display_name.split.first} — saw what #{pe.company.name} is " \
+                     "working on and wanted to reach out. Worth a quick chat?</p>"
+        )
+        pe.update_column(:stage, "review")
+      end
+    rescue => e
+      puts "(skipped UI seed: #{e.class}: #{e.message})"
+    end
+
     stage_order = %w[new drafting review contacted replied dud]
     counts = Sendoff::PipelineEntry.group(:stage).count
     puts "Pipeline by stage:"
@@ -61,6 +93,11 @@ namespace :sendoff do
     puts
     puts "Totals: #{Sendoff::Company.count} companies, " \
          "#{Sendoff::Lead.count} leads, " \
-         "#{Sendoff::PipelineEntry.count} pipeline entries."
+         "#{Sendoff::PipelineEntry.count} pipeline entries, " \
+         "#{Sendoff::Draft.count} drafts, " \
+         "#{Sendoff::VoiceRule.count} voice rules."
+    puts
+    puts "Now boot the UI:  cd spec/dummy && RAILS_ENV=development bin/rails server"
+    puts "and open http://localhost:3000/sendoff"
   end
 end
