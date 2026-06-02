@@ -1,0 +1,82 @@
+# Sendoff configuration
+#
+# Copy this file to config/initializers/sendoff.rb and adjust. Every option
+# below has a sensible, network-free default, so you only need to set what you
+# want to change. Read the live config anywhere with `Sendoff.config`.
+
+Sendoff.configure do |config|
+  # --- Persona -------------------------------------------------------------
+  # Who is writing, in what voice, to sell what. This replaces every hardcoded
+  # name, product string, voice rule, and URL in the drafter and critics.
+  #
+  # Required:        product_name, sender_name, sender_email
+  # Everything else is optional and defaults to empty.
+  config.persona = Sendoff::Persona.new(
+    product_name:        "Your Product",
+    product_description: "a one-line description of what you sell",
+    sender_name:         "Sender Name",
+    sender_email:        "sender@example.com",
+
+    # Markdown voice + principles. Keep them in files you can edit without a
+    # deploy. See config/templates/ for adaptable example content.
+    voice_guide:         Rails.root.join("config/voice_guide.md").read,
+    outreach_principles: Rails.root.join("config/outreach_principles.md").read,
+
+    # Only URLs matching one of these regexps may appear in a draft. Anything
+    # else is rejected by the drafter's URL guard. The lead's own account
+    # subdomain (from AccountLookup) is allowed automatically.
+    allowed_url_patterns: [
+      %r{\Ahttps://calendar\.example\.com/},
+      %r{\Ahttps://www\.example\.com/}
+    ],
+
+    # Addresses copied on every outbound email.
+    default_cc:  [],
+    default_bcc: [],
+
+    # Optional per-segment guidance injected into the prompt. Keys are your
+    # segment values; values are short strings appended to the prompt.
+    segment_prompt_hints: {
+      # "agency" => "Lead with reporting time saved across client accounts.",
+      # "brand"  => "Emphasize consolidating data from many sources."
+    }
+  )
+
+  # --- LLM client ----------------------------------------------------------
+  # Any object responding to #complete(prompt) -> String.
+  #
+  # Default: LLM::ClaudeCliClient shells out to the `claude` CLI in headless
+  # mode (binary from the arg, then SENDOFF_CLAUDE_BIN, then `claude` on PATH).
+  config.llm_client = Sendoff::LLM::ClaudeCliClient.new
+  # config.llm_client = Sendoff::LLM::ClaudeCliClient.new(binary: "/usr/local/bin/claude")
+  # config.llm_client = MyRubyLlmClient.new   # any #complete(prompt) -> String
+
+  # --- Adapters ------------------------------------------------------------
+  # Where leads/accounts/social-proof come from. Defaults are null objects, so
+  # the engine boots with no external data: no leads are synced, every lead is
+  # treated as a cold prospect, and no brand-mention data is available.
+  #
+  # config.lead_source          = MyCrm::LeadSource.new          # -> Array<LeadData>
+  # config.account_lookup       = MyCrm::AccountLookup.new       # find(lead) -> AccountInfo | nil
+  # config.brand_mention_source = MyCrm::BrandMentionSource.new  # count_for/competitors_for
+
+  # --- Gmail ---------------------------------------------------------------
+  # A factory that returns a Gmail client for a given EmailAccount. The default
+  # builds the real Sendoff::Gmail::Client. Override in tests/specs with a
+  # fake. (Set GMAIL_DRY_RUN=true to log instead of actually sending.)
+  #
+  # config.gmail_client_factory = ->(email_account) { MyFakeGmail.new(email_account) }
+
+  # --- Critics -------------------------------------------------------------
+  # Run a second LLM pass that fact-checks the draft and flags unsupported
+  # claims before send. Defaults to true.
+  config.hallucination_critic_enabled = true
+
+  # --- Send safety ---------------------------------------------------------
+  # Caps and cooldowns enforced before an email goes out. Each also reads an
+  # ENV var (shown) as its default.
+  config.send_daily_cap          = 20  # SENDOFF_SEND_DAILY_CAP
+  config.send_hourly_cap         = 5   # SENDOFF_SEND_HOURLY_CAP
+  config.recipient_cooldown_days = 7   # SENDOFF_RECIPIENT_COOLDOWN_DAYS — no re-contact within N days
+  config.lead_fresh_touch_days   = 4   # SENDOFF_LEAD_FRESH_TOUCH_DAYS — a touch within N days counts as "fresh"
+end
