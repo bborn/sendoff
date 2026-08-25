@@ -8,7 +8,7 @@ gem "pg"
 gem "propshaft"
 
 # Background jobs (the dummy app uses Solid Queue, like a real host app would).
-gem "solid_queue", "~> 1.0"
+gem "solid_queue", "~> 1.7"
 
 # Omakase Ruby styling [https://github.com/rails/rubocop-rails-omakase/]
 gem "rubocop-rails-omakase", require: false
